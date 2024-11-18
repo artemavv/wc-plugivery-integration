@@ -9,7 +9,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  * Requires at least: 5.4
  * Requires PHP: 7.4
- * Version: 0.0.1
+ * Version: 0.0.5
  */
 
 /*
@@ -30,7 +30,7 @@
 
 require_once 'includes.php';
 
-define( 'WCPI_VERSION', '0.0.1' );
+define( 'WCPI_VERSION', '0.0.5' );
 define( 'WCPI_SCHEMA_VERSION', '1' );
 define( 'WCPI_TEXT_DOMAIN', 'wc-plugivery-integration' );
 
@@ -52,48 +52,3 @@ register_deactivation_hook( $plugin_root, array('Wcpi_Plugin', 'uninstall') );
 /* * * Initialise Plugin *** */
 
 $wclu_plugin = new Wcpi_Plugin( $plugin_root );
-
-function apd_add_product_type_field()
-{
-    global $woocommerce, $post;
-    echo '<div class="options_group">';
-
-    woocommerce_wp_checkbox(
-        array(
-            'id' => '_plugivery_prd',
-            'label' => __('Plugivery Product', 'woocommerce'),
-            'desc_tip' => 'true',
-            'description' => __('Check this field for the plugivery product', 'woocommerce')
-        ));
-
-    woocommerce_wp_text_input(
-        array(
-            'id' => '_plugivery_product_id',
-            'label' => __('Plugivery Product Id', 'woocommerce'),
-            'placeholder' => '',
-            'description' => __('Enter the plugivery product id', 'woocommerce'),
-            'type' => 'number',
-            'value' => (get_post_meta($post->ID, '_plugivery_product_id', true)) ? get_post_meta($post->ID, '_plugivery_product_id', true) : 0,
-            'custom_attributes' => array(
-                'step' => 'any',
-                'min' => '0'
-            )
-        )
-    );
-
-    woocommerce_wp_text_input(
-        array(
-            'id' => '_plugivery_coupon',
-            'label' => __('Plugivery Coupon', 'woocommerce'),
-            'placeholder' => '',
-            'description' => __('Enter the plugivery coupon code', 'woocommerce'),
-            'type' => 'text',
-            'value' => (get_post_meta($post->ID, '_plugivery_coupon', true)) ? get_post_meta($post->ID, '_plugivery_coupon', true) : '',
-        )
-    );
-
-
-    echo '</div>';
-}
-
-add_action('woocommerce_product_options_general_product_data', 'apd_add_product_type_field');
