@@ -33,8 +33,68 @@ class Wcpi_Plugin extends Wcpi_Core {
 		add_action( 'woocommerce_product_options_general_product_data', array( $this, 'add_product_fields' ) );
 
 		add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_fields' ) );
+		
+		// add_action('woocommerce_checkout_update_order_meta', array( $this, 'update_order_meta_on_checkout' ), 10, 2 );
+		
+		add_action( 'woocommerce_order_status_completed', array( $this, 'process_plugivery_products_in_order' ), 10, 1 );
 	}
 
+	/**
+	 * 
+	 * @param int $order_id
+	 * @param bool $posted
+	 *
+	public function update_order_meta_on_checkout( $order_id, $posted ) {
+		$order = wc_get_order( $order_id );
+
+		if ( is_a( 'WC_Order', $order ) ) {
+
+			$items = $order->get_items();
+
+			$has_plugivery_products = false;
+
+			foreach ( $items as $key => $item ) {
+
+				if ( get_post_meta( $item['product_id'], '_plugivery_enabled', true ) == 'yes' ) {
+					$has_plugivery_products = true;
+					break;
+				}
+			}
+
+			if ( $has_plugivery_products ) {
+				$order->update_meta_data( 'plugivery_order_type', 1 );
+			} else {
+				$order->update_meta_data( 'plugivery_order_type', 0 );
+			}
+
+			$order->save();
+		}
+	}*/
+
+	public function process_plugivery_products_in_order( $order_id ) {
+		
+		$plugivery_enabled = self::is_plugivery_enabled();
+		$token = self::get_plugivery_token();
+		$order = wc_get_order($order_id);
+		
+		if ( $plugivery_enabled && $token && is_a( 'WC_Order', $order ) ) {
+			$order_items = $order->get_items();
+
+			foreach ( $order_items as $item ) {
+				$product_id = $item['product_id'];
+
+				if ( get_post_meta( $product_id, '_plugivery_enabled', true ) == 'yes' ) {
+					$plugivery_data = $this->get_plugivery_product_data( $token, $product_id );
+
+					if ( is_array( $plugivery_data ) ) {
+						$item->add_meta_data('_plugivery', $plugivery_data );
+					}
+				}	
+			}
+		}
+	}
+	
+	
 	/**
 	 * 
 	 * @param int $post_id
@@ -109,6 +169,112 @@ class Wcpi_Plugin extends Wcpi_Core {
 		echo '</div>';
 	}
 
+	/**
+	 * Returns the current status of Plugivery integration
+	 * @return bool
+	 */
+	public static function is_plugivery_enabled() {
+		
+		$stored_options = get_option('wc_plugivery_options', array());
+		
+		$enabled = $stored_options['plugivery_enabled'] ?? false;
+		
+		return $enabled;
+	}
+	
+	/**
+	 * Returns the current token for Plugivery integration
+	 * @return string
+	 */
+	public static function get_plugivery_token() {
+	
+		$stored_options = get_option('wc_plugivery_options', array());
+		
+		$token = $stored_options['plugivery_api_key'] ?? false;
+		
+		return $token;
+	}
+	
+	public function get_plugivery_product_data( $token, $product_id ) {
+		
+		$plugivery_product_id  = intval( get_post_meta( $product_id, '_plugivery_product_id', true ) );
+		$plugivery_enabled_for_product     = get_post_meta( $product_id, '_plugivery_enabled', true );
+		$plugivery_coupon      = get_post_meta( $product_id, '_plugivery_coupon', true );
+		
+		if ( $token && $plugivery_product_id > 0 && $plugivery_enabled_for_product ) {
+			
+			$plugivery_data = $this->request_api( $token, $plugivery_product_id, $plugivery_coupon );
+			
+			return $plugivery_data;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * 
+	 * @param string $token
+	 * @param int $plugivery_product_id
+	 * @param string $plugivery_coupon
+	 * @return array or false
+	 */
+	public function request_api( $token, $plugivery_product_id, $plugivery_coupon = '') {
+		
+		$plugivery_result = false;
+		$all_ok = false;
+		
+		$parameters = array(
+			'act'      => 'buy',
+			'token'    => $token,
+			'pid'      => $plugivery_product_id,
+			'qty'      => 1,
+			'coup'     => $plugivery_coupon,
+			'mid'      => 0,
+			'via'      => 'credit',
+			'print'    => 2
+		);
+		
+		$parameter_string = http_build_query( $parameters );
+
+		$api_request_url = 'https://api.plugivery.com/orders/?' . $parameter_string;
+		
+		$ch = curl_init();
+		
+		curl_setopt( $ch, CURLOPT_URL, $api_request_url );
+		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+		
+		$data = curl_exec( $ch );
+		
+		$result = json_decode( $data, true );
+
+		if ( is_array( $result ) ) {
+			
+			if ( isset( $result['error'] ) && $result['error'] == 0 ) { // All ok
+	
+				$response = (array) $result['data'][0];
+
+				if ( isset($response['redeem_code']) && isset($response['redeem_url']) ) {
+
+					$all_ok = true;
+					$plugivery_result = [
+						'redeem_code' => $response['redeem_code'],
+						'redeem_url' => $response['redeem_url'],
+					];
+				}
+			}
+			
+			if ( ! $all_ok ) {
+				self::wc_log('Received error response from Plugivery', $result );
+			}
+			
+		}
+		else {
+			self::wc_log('Failed to get a response from Plugivery', [ 'data' => $data ] );
+		}
+		
+		return $plugivery_result;
+	}
+	
 	public function initialize() {
 		self::load_options();
 	}
@@ -118,6 +284,6 @@ class Wcpi_Plugin extends Wcpi_Core {
 	}
 
 	public static function install() {
-		// TODO
+		// nothing to do yet
 	}
 }
