@@ -77,17 +77,18 @@ class Wcpi_Plugin extends Wcpi_Core {
 		$token = self::get_plugivery_token();
 		$order = wc_get_order($order_id);
 		
-		if ( $plugivery_enabled && $token && is_a( 'WC_Order', $order ) ) {
+		if ( $plugivery_enabled && $token && is_a( $order, 'WC_Order' ) ) {
 			$order_items = $order->get_items();
 
 			foreach ( $order_items as $item ) {
 				$product_id = $item['product_id'];
 
-				if ( get_post_meta( $product_id, '_plugivery_enabled', true ) == 'yes' ) {
+				if ( get_post_meta( $product_id, '_plugivery_enabled', true ) ) {
 					$plugivery_data = $this->get_plugivery_product_data( $token, $product_id );
 
 					if ( is_array( $plugivery_data ) ) {
 						$item->add_meta_data('_plugivery', $plugivery_data );
+						$item->save();
 					}
 				}	
 			}
@@ -119,6 +120,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 
 		$plugivery_coupon = $_POST['_plugivery_coupon'];
 		update_post_meta( $post_id, '_plugivery_coupon', esc_attr( $plugivery_coupon ) );
+
 	}
 
 	public function add_product_fields() {
@@ -201,6 +203,8 @@ class Wcpi_Plugin extends Wcpi_Core {
 		$plugivery_enabled_for_product     = get_post_meta( $product_id, '_plugivery_enabled', true );
 		$plugivery_coupon      = get_post_meta( $product_id, '_plugivery_coupon', true );
 		
+		//self::wc_log( 'check for get_plugivery_product_data', [ $token, $product_id, $plugivery_enabled_for_product, $plugivery_coupon, $plugivery_product_id ] );
+		
 		if ( $token && $plugivery_product_id > 0 && $plugivery_enabled_for_product ) {
 			
 			$plugivery_data = $this->request_api( $token, $plugivery_product_id, $plugivery_coupon );
@@ -240,6 +244,10 @@ class Wcpi_Plugin extends Wcpi_Core {
 		
 		$ch = curl_init();
 		
+		
+		//self::wc_log( 'check for request_api', [ $parameters, $api_request_url ] );
+		
+		
 		curl_setopt( $ch, CURLOPT_URL, $api_request_url );
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
 		
@@ -262,14 +270,13 @@ class Wcpi_Plugin extends Wcpi_Core {
 					];
 				}
 			}
-			
-			if ( ! $all_ok ) {
-				self::wc_log('Received error response from Plugivery', $result );
-			}
-			
 		}
 		else {
-			self::wc_log('Failed to get a response from Plugivery', [ 'data' => $data ] );
+			self::wc_log('Failed to get a response from Plugivery data: ' . print_r( $data, true ) );
+		}
+		
+		if ( ! $all_ok ) {
+			self::wc_log('Received error response from Plugivery' . print_r( $result, true ) );
 		}
 		
 		return $plugivery_result;
