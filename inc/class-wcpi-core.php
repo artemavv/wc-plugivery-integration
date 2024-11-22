@@ -16,6 +16,8 @@ class Wcpi_Core {
 	// Actions triggered by buttons in backend area
 	public const ACTION_SAVE_OPTIONS                     = 'Save settings';
 	
+	// Key to use in "wp_options" table to save plugin settings
+	public const OPTIONS_NAME = 'wc_plugivery_options';
 	
 	/**
 	 * List of default values for plugin settings
@@ -25,7 +27,11 @@ class Wcpi_Core {
 	 */
 	public static $default_option_values = [
 		'plugivery_api_key' => '',
-		'plugivery_enabled' => 1
+		'plugivery_enabled' => 1,
+		'email_subject'     => 'You have purchased a Plugivery product!',
+		'email_body'        => "Hello!\r\nHere is your license key: {redeem_code} .\r\n"
+		                     . "You can download the product here: {redeem_url}.\r\nHave a nice day!"
+		
 	];
 	
 	public static function init() {
@@ -33,7 +39,7 @@ class Wcpi_Core {
 	}
 
 	public static function load_options() {
-		$stored_options = get_option('wc_plugivery_options', array());
+		$stored_options = get_option( self::OPTIONS_NAME, array());
 
 		foreach (self::$default_option_values as $option_name => $default_option_value) {
 			if (isset($stored_options[$option_name])) {

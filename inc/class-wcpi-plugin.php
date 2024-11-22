@@ -43,11 +43,11 @@ class Wcpi_Plugin extends Wcpi_Core {
 	 * 
 	 * @param int $order_id
 	 * @param bool $posted
-	 *
+	 */
 	public function update_order_meta_on_checkout( $order_id, $posted ) {
 		$order = wc_get_order( $order_id );
 
-		if ( is_a( 'WC_Order', $order ) ) {
+		if ( is_a( $order, 'WC_Order' ) ) {
 
 			$items = $order->get_items();
 
@@ -69,7 +69,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 
 			$order->save();
 		}
-	}*/
+	}
 
 	public function process_plugivery_products_in_order( $order_id ) {
 		
@@ -102,7 +102,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 	 */
 	public function save_product_fields( int $post_id ) {
 
-		$is_plugivery = isset( $_POST['_plugivery_enabled'] ) ? 'yes' : 'no';
+		$is_plugivery = isset( $_POST['_plugivery_enabled'] );
 
 		$plugivery_product_id = intval( $_POST['_plugivery_product_id'] );
 
@@ -112,7 +112,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 			update_post_meta( $post_id, '_plugivery_product_id', esc_attr( intval( $plugivery_product_id ) ) );
 		}
 
-		if ( $plugivery_product_id != 0 && $is_plugivery === 'yes' ) {
+		if ( $plugivery_product_id != 0 && $is_plugivery ) {
 			update_post_meta( $post_id, '_plugivery_enabled', 1 );
 		} else {
 			update_post_meta( $post_id, '_plugivery_enabled', 0 );
@@ -177,7 +177,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 	 */
 	public static function is_plugivery_enabled() {
 		
-		$stored_options = get_option('wc_plugivery_options', array());
+		$stored_options = get_option( self::OPTIONS_NAME, array() );
 		
 		$enabled = $stored_options['plugivery_enabled'] ?? false;
 		
@@ -190,7 +190,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 	 */
 	public static function get_plugivery_token() {
 	
-		$stored_options = get_option('wc_plugivery_options', array());
+		$stored_options = get_option( self::OPTIONS_NAME, array() );
 		
 		$token = $stored_options['plugivery_api_key'] ?? false;
 		

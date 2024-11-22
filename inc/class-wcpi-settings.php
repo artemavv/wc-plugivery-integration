@@ -96,6 +96,23 @@ class Wcpi_Settings extends Wcpi_Core {
 				'label' => 'Plugivery API Key',
 				'default' => '',
 				'value' => self::$option_values['plugivery_api_key'],
+			),
+			array(
+				'name' => "email_subject",
+				'type' => 'text',
+				'size' => 36,
+				'label' => 'Email Subject',
+				'default' => '',
+				'value' => self::$option_values['email_subject'],
+			),
+			array(
+				'name' => "email_body",
+				'type' => 'textarea',
+				'rows' => 8,
+				'cols' => 40,
+				'label' => 'Email Content',
+				'default' => '',
+				'value' => self::$option_values['email_body'],
 			)
 		);
 		?> 
