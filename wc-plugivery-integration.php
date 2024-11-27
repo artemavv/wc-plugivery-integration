@@ -9,7 +9,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  * Requires at least: 5.4
  * Requires PHP: 7.4
- * Version: 0.0.9
+ * Version: 0.1
  */
 
 /*
@@ -30,7 +30,7 @@
 
 require_once 'includes.php';
 
-define( 'WCPI_VERSION', '0.0.9' );
+define( 'WCPI_VERSION', '0.1' );
 define( 'WCPI_SCHEMA_VERSION', '1' );
 define( 'WCPI_TEXT_DOMAIN', 'wc-plugivery-integration' );
 

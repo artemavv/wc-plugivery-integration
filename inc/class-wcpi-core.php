@@ -15,6 +15,8 @@ class Wcpi_Core {
 	
 	// Actions triggered by buttons in backend area
 	public const ACTION_SAVE_OPTIONS                     = 'Save settings';
+	public const ACTION_RUN_EMAIL_TEST                   = 'Send Plugivery email for order';
+	public const ACTION_RUN_API_TEST                     = 'Test Plugivery API for order';
 	
 	// Key to use in "wp_options" table to save plugin settings
 	public const OPTIONS_NAME = 'wc_plugivery_options';
@@ -29,7 +31,7 @@ class Wcpi_Core {
 		'plugivery_api_key' => '',
 		'plugivery_enabled' => 1,
 		'email_subject'     => 'You have purchased a Plugivery product!',
-		'email_body'        => "Hello!\r\nHere is your license key: {redeem_code} .\r\n"
+		'email_template'    => "Hello!\r\nHere is your license key: {redeem_code} .\r\n"
 		                     . "You can download the product here: {redeem_url}.\r\nHave a nice day!"
 		
 	];

@@ -49,6 +49,30 @@ class Wcpi_Settings extends Wcpi_Core {
 
 					update_option( 'wc_plugivery_options', $stored_options );
 					break;
+				case self::ACTION_RUN_EMAIL_TEST:
+					
+					if ( $_POST['test_order_id'] ) {
+						
+						$test_order_id = intval( $_POST['test_order_id'] );
+					
+						$email_sender = new Wcpi_Order_Completed_Email();
+
+						$result = print_r( $email_sender->test_email( $test_order_id ), 1);
+					}
+					
+					break;
+					case self::ACTION_RUN_API_TEST:
+					
+					if ( $_POST['test_order_id'] ) {
+						
+						$test_order_id = intval( $_POST['test_order_id'] );
+					
+						$updated = Wcpi_Plugin::process_plugivery_products_in_order( $test_order_id );
+
+						$result = "Updated $updated product(s) in order #$test_order_id";
+					}
+					
+					break;
 			}
 		}
 
@@ -63,7 +87,7 @@ class Wcpi_Settings extends Wcpi_Core {
 			$action_results = self::do_action();
 		}
 
-		echo $action_results;
+		echo '<pre>' . $action_results . '</pre>';
 
 		self::load_options();
 		
@@ -106,13 +130,13 @@ class Wcpi_Settings extends Wcpi_Core {
 				'value' => self::$option_values['email_subject'],
 			),
 			array(
-				'name' => "email_body",
+				'name' => "email_template",
 				'type' => 'textarea',
 				'rows' => 8,
 				'cols' => 40,
-				'label' => 'Email Content',
+				'label' => 'Email content template',
 				'default' => '',
-				'value' => self::$option_values['email_body'],
+				'value' => self::$option_values['email_template'],
 			)
 		);
 		?> 
@@ -131,6 +155,35 @@ class Wcpi_Settings extends Wcpi_Core {
 
 		</form>
 
+		<h2>Test Plugivery integration</h2>
+		<?php	
+			$test_field_set = array(
+				array(
+					'name' => "test_order_id",
+					'type' => 'text',
+					'size' => 6,
+					'label' => 'Order ID',
+					'default' => '',
+					'value' => $_POST['test_order_id'] ?? '',
+				)
+			);
+		?>		
+		<form method="POST" >
+
+			<table class="wcpi-global-table">
+					<tbody>
+							<?php self::display_field_set($test_field_set); ?>
+					</tbody>
+			</table>
+
+			<p class="submit">  
+					<input type="submit" id="wcpi-button-test-email" name="wcpi-button-save" class="button button-primary" style="" value="<?php echo self::ACTION_RUN_EMAIL_TEST; ?>" />
+			</p>
+			<p class="submit">  
+					<input type="submit" id="wcpi-button-test-api" name="wcpi-button-save" class="button button-primary" style="" value="<?php echo self::ACTION_RUN_API_TEST; ?>" />
+			</p>
+
+		</form>
 		<?php
 	}
 }

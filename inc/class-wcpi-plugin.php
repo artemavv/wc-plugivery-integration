@@ -34,12 +34,15 @@ class Wcpi_Plugin extends Wcpi_Core {
 
 		add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_fields' ) );
 		
-		// add_action('woocommerce_checkout_update_order_meta', array( $this, 'update_order_meta_on_checkout' ), 10, 2 );
+		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'update_order_meta_on_checkout' ), 10, 2 );
 		
 		add_action( 'woocommerce_order_status_completed', array( $this, 'process_plugivery_products_in_order' ), 10, 1 );
+		
+		add_filter( 'woocommerce_email_classes', array( $this, 'register_plugivery_order_email' ) );
 	}
 
 	/**
+	 * Save plugivery status for order in checkout.
 	 * 
 	 * @param int $order_id
 	 * @param bool $posted
@@ -55,7 +58,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 
 			foreach ( $items as $key => $item ) {
 
-				if ( get_post_meta( $item['product_id'], '_plugivery_enabled', true ) == 'yes' ) {
+				if ( get_post_meta( $item['product_id'], '_plugivery_enabled', true ) == 1 ) {
 					$has_plugivery_products = true;
 					break;
 				}
@@ -70,8 +73,27 @@ class Wcpi_Plugin extends Wcpi_Core {
 			$order->save();
 		}
 	}
+	
+	/**
+	 * Register our custom email-sending class.
+	 * 
+	 * @param array $classes
+	 * @return array
+	 */
+	public function register_plugivery_order_email( $classes ) {
+    include( __DIR__ . '/class-wcpi-email.php');
 
-	public function process_plugivery_products_in_order( $order_id ) {
+		if ( class_exists( 'Wcpi_Order_Completed_Email' ) ) {
+			$classes['Wcpi_Order_Completed_Email'] = new Wcpi_Order_Completed_Email();
+		}
+		
+    return $classes;
+	}
+
+
+	public static function process_plugivery_products_in_order( $order_id ) {
+		
+		$updated_products_count = 0;
 		
 		$plugivery_enabled = self::is_plugivery_enabled();
 		$token = self::get_plugivery_token();
@@ -81,20 +103,37 @@ class Wcpi_Plugin extends Wcpi_Core {
 			$order_items = $order->get_items();
 
 			foreach ( $order_items as $item ) {
-				$product_id = $item['product_id'];
-
-				if ( get_post_meta( $product_id, '_plugivery_enabled', true ) ) {
-					$plugivery_data = $this->get_plugivery_product_data( $token, $product_id );
-
-					if ( is_array( $plugivery_data ) ) {
-						$item->add_meta_data('_plugivery', $plugivery_data );
-						$item->save();
-					}
-				}	
+				$updated_products_count += self::update_plugivery_product_in_order( $item, $token );
 			}
 		}
+		
+		return $updated_products_count;
 	}
 	
+	
+	public static function update_plugivery_product_in_order( $item, $token ) {
+		
+		$result = 0;
+		
+		$product_id = $item['product_id'];
+
+		if ( get_post_meta( $product_id, '_plugivery_enabled', true ) ) {
+			$plugivery_data = self::get_plugivery_product_data( $token, $product_id );
+
+			if ( is_array( $plugivery_data ) ) {
+
+				$download_link = '<a href="' . $plugivery_data['redeem_url'] . '">Download Here</a>';
+				$item->add_meta_data('_plugivery', $plugivery_data );
+				$item->add_meta_data('Redeem code', $plugivery_data['redeem_code'] );
+				$item->add_meta_data('Download link', $download_link );
+				$item->save();
+				
+				$result = 1;
+			}
+		}
+		
+		return $result;
+	}
 	
 	/**
 	 * 
@@ -127,7 +166,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 		global $post;
 		echo '<div class="options_group">';
 
-		$plugivery_enabled = get_post_meta( $post->ID, '_plugivery_enabled', true ) ? 'yes' : 'no';
+		$plugivery_enabled = get_post_meta( $post->ID, '_plugivery_enabled', true ) ? 1 : 0;
 
 		woocommerce_wp_checkbox(
 			array(
@@ -197,17 +236,17 @@ class Wcpi_Plugin extends Wcpi_Core {
 		return $token;
 	}
 	
-	public function get_plugivery_product_data( $token, $product_id ) {
+	public static function get_plugivery_product_data( $token, $product_id ) {
 		
-		$plugivery_product_id  = intval( get_post_meta( $product_id, '_plugivery_product_id', true ) );
+		$plugivery_product_id              = intval( get_post_meta( $product_id, '_plugivery_product_id', true ) );
 		$plugivery_enabled_for_product     = get_post_meta( $product_id, '_plugivery_enabled', true );
-		$plugivery_coupon      = get_post_meta( $product_id, '_plugivery_coupon', true );
+		$plugivery_coupon                  = get_post_meta( $product_id, '_plugivery_coupon', true );
 		
 		//self::wc_log( 'check for get_plugivery_product_data', [ $token, $product_id, $plugivery_enabled_for_product, $plugivery_coupon, $plugivery_product_id ] );
 		
 		if ( $token && $plugivery_product_id > 0 && $plugivery_enabled_for_product ) {
 			
-			$plugivery_data = $this->request_api( $token, $plugivery_product_id, $plugivery_coupon );
+			$plugivery_data = self::request_api( $token, $plugivery_product_id, $plugivery_coupon );
 			
 			return $plugivery_data;
 		}
@@ -222,7 +261,7 @@ class Wcpi_Plugin extends Wcpi_Core {
 	 * @param string $plugivery_coupon
 	 * @return array or false
 	 */
-	public function request_api( $token, $plugivery_product_id, $plugivery_coupon = '') {
+	public static function request_api( $token, $plugivery_product_id, $plugivery_coupon = '') {
 		
 		$plugivery_result = false;
 		$all_ok = false;

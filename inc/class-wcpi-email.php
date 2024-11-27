@@ -9,7 +9,13 @@ if (!defined('ABSPATH'))
  * @extends \WC_Email
  */
 
+if ( class_exists( 'WC_Email') ) {
+
 class Wcpi_Order_Completed_Email extends WC_Email {
+	
+	
+	private $log_enabled = false;
+	private $order_id = 0;
 	
 	/**
 	 * Set email defaults
@@ -30,7 +36,7 @@ class Wcpi_Order_Completed_Email extends WC_Email {
 
 		// these are the default heading and subject lines that can be overridden using the settings
 		$this->heading = 'Your Order is Completed.';
-		$this->subject = 'Audio Plugin Big Deal Order Completed. {product_email_subject}';
+		$this->subject = 'Plugivery Order Completed. {product_email_subject}';
 
 		// Trigger on new completed orders
 		add_action('woocommerce_order_status_completed_notification', array( $this, 'trigger' ), 1000 );
@@ -104,13 +110,19 @@ class Wcpi_Order_Completed_Email extends WC_Email {
 	public function test_email( $order_id ) {
 
 		// bail if no order ID is present
-		if (!$order_id) {
+		if ( ! $order_id ) {
 			return;
 		}
 
+		$this->log_enabled = true;
+		$this->order_id = $order_id;
+		
 		// check if order has any Plugivery products
 		if ( ! $this->is_plugivery_order( $order_id ) ) {
-			return;
+			
+			self::log( $this->order_id . ') is not a plugivery order' );
+			return 'Not a plugivery order';
+			
 		}
 
     // setup order object
@@ -123,8 +135,8 @@ class Wcpi_Order_Completed_Email extends WC_Email {
 		$this->replace['order-date'] = date_i18n(wc_date_format(), strtotime($this->object->order_date));
 		$this->replace['order-number'] = $this->object->get_order_number();
 
-		if (!$this->is_enabled() || !$this->get_recipient()) {
-			return;
+		if ( ! $this->is_enabled() || ! $this->get_recipient() ) {
+			return 'Not enabled to send';
 		}
 
 		$emails_to_send = $this->get_content();
@@ -210,12 +222,22 @@ class Wcpi_Order_Completed_Email extends WC_Email {
 		
 		foreach ( $items as $item ) {
 			
-			$data = $this->get_plugivery_data( $item );
+			$data = $this->get_saved_plugivery_data( $item );
 			
-			if ( $data ) {
+			if ( $this->log_enabled ) {
+				self::log( $this->order_id . ') prepare_emails_to_send - item.' );
+				self::log( $item );
+				self::log( $this->order_id . ') get_saved_plugivery_data - data.' );
+				self::log( $data );
+				self::log( $this->order_id . ') HTML.' );
+				self::log( $html );
+				self::log( $this->order_id . ') template.' );
+				self::log( $this->get_wcpi_setting( 'email_template' ) );
+			}
+			if ( is_array( $data ) ) {
 	
 				$body = str_replace('{product_email_text}', $this->get_wcpi_setting( 'email_template' ), $html );
-				$subject = str_replace('{product_email_subject}', $this->get_wcpi_setting( 'email_template' ), $this->subject );
+				$subject = str_replace('{product_email_subject}', $this->get_wcpi_setting( 'email_subject' ), $this->subject );
 				
 				$search = array(
 					'{product_name}',
@@ -235,8 +257,8 @@ class Wcpi_Order_Completed_Email extends WC_Email {
 				$email_subject = str_replace( $search, $replace, $subject );
 				
 				$emails[] = array(
-					'subject'	=> $email_body,
-					'body'		=> $email_subject
+					'subject'	=> $email_subject,
+					'body'		=> $email_body
 				);
 			}
 		}
@@ -244,6 +266,27 @@ class Wcpi_Order_Completed_Email extends WC_Email {
 		return $emails;
 	}
 	
+	public function get_saved_plugivery_data( $item ) {
+		
+		$result = false;
+		
+		$meta_data = $item->get_meta_data();
+		
+		foreach ( $meta_data as $meta ) {
+			
+			if ( $this->log_enabled ) {
+				self::log('meta plugivery_data');
+				self::log($meta);
+			}
+				
+			if ( $meta->key == '_plugivery' ) {
+				$result = $meta->value;
+				break;
+			}
+		}
+		
+		return $result;
+	}
 	
 	public function get_wcpi_setting( $setting_name ) {
 	
@@ -308,4 +351,6 @@ class Wcpi_Order_Completed_Email extends WC_Email {
 				file_put_contents($filename, date("Y-m-d H:i:s") . " | " . print_r($data,1) . "\r\n\r\n", FILE_APPEND);
 			}
     }
+}
+
 }
