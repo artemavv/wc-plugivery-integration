@@ -36,9 +36,12 @@ class Wcpi_Plugin extends Wcpi_Core {
 		
 		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'update_order_meta_on_checkout' ), 10, 2 );
 		
-		add_action( 'woocommerce_order_status_completed', array( $this, 'process_plugivery_products_in_order' ), 10, 1 );
+		//add_action( 'woocommerce_order_status_completed', array( $this, 'process_plugivery_products_in_order' ), 2, 1 );
 		
-		add_filter( 'woocommerce_email_classes', array( $this, 'register_plugivery_order_email' ) );
+		add_action( 'woocommerce_checkout_order_processed', array( $this, 'process_plugivery_products_in_order' ), 2, 3 );
+		
+		
+		//add_filter( 'woocommerce_email_classes', array( $this, 'register_plugivery_order_email' ) );
 	}
 
 	/**
@@ -91,13 +94,13 @@ class Wcpi_Plugin extends Wcpi_Core {
 	}
 
 
-	public static function process_plugivery_products_in_order( $order_id ) {
+	public static function process_plugivery_products_in_order( $order_id, $posted_data, $order ) {
 		
 		$updated_products_count = 0;
 		
 		$plugivery_enabled = self::is_plugivery_enabled();
 		$token = self::get_plugivery_token();
-		$order = wc_get_order($order_id);
+		// $order = wc_get_order($order_id);
 		
 		if ( $plugivery_enabled && $token && is_a( $order, 'WC_Order' ) ) {
 			$order_items = $order->get_items();
@@ -117,15 +120,17 @@ class Wcpi_Plugin extends Wcpi_Core {
 		
 		$product_id = $item['product_id'];
 
-		if ( get_post_meta( $product_id, '_plugivery_enabled', true ) ) {
+		if ( get_post_meta( $product_id, '_plugivery_enabled', true ) && ! isset( $item['item_meta']['_plugivery'] ) ) {
 			$plugivery_data = self::get_plugivery_product_data( $token, $product_id );
 
 			if ( is_array( $plugivery_data ) ) {
 
-				$download_link = '<a href="' . $plugivery_data['redeem_url'] . '">Download Here</a>';
-				$item->add_meta_data('_plugivery', $plugivery_data );
-				$item->add_meta_data('Redeem code', $plugivery_data['redeem_code'] );
-				$item->add_meta_data('Download link', $download_link );
+				// $download_link = '<a href="' . $plugivery_data['redeem_url'] . '">Download Here</a>';
+				$download_link = $plugivery_data['redeem_url'];
+				
+				$item->add_meta_data('_plugivery', $plugivery_data, true );
+				$item->add_meta_data('Redeem code', $plugivery_data['redeem_code'], true );
+				$item->add_meta_data('Download link', $download_link, true );
 				$item->save();
 				
 				$result = 1;
